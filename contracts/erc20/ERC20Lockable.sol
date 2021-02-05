@@ -38,12 +38,19 @@ abstract contract ERC20Lockable is ERC20, Ownable {
     }
 
     function _unlock(address from, uint256 index) internal returns (bool success) {
-        LockInfo storage lock = _locks[from][index];
-        _totalLocked[from] = _totalLocked[from] - lock.amount;
-        emit Unlock(from, lock.amount);
+        LockInfo storage lockinfo = _locks[from][index];
+        _totalLocked[from] = _totalLocked[from] - lockinfo.amount;
+        emit Unlock(from, lockinfo.amount);
         _locks[from][index] = _locks[from][_locks[from].length - 1];
         _locks[from].pop();
         success = true;
+    }
+
+    function lock(address from, uint256 amount, uint256 due)
+    external
+    onlyOwner
+    returns(bool success){
+       success = _lock(from, amount, due); 
     }
 
     function unlock(address from, uint256 idx) external returns(bool success){
@@ -52,9 +59,10 @@ abstract contract ERC20Lockable is ERC20, Ownable {
     }
 
     function unlockAll(address from) external returns (bool success) {
-        for(uint256 i = 0; i < _locks[from].length; i++){
-            if(_locks[from][i].due < block.timestamp){
-                if(_unlock(from, i)){
+        for(uint256 i = 0; i < _locks[from].length;){
+            i++;
+            if(_locks[from][i-1].due < block.timestamp){
+                if(_unlock(from, i-1)){
                     i--;
                 }
             }
@@ -67,8 +75,9 @@ abstract contract ERC20Lockable is ERC20, Ownable {
     onlyOwner
     returns (bool success)
     {
-        for(uint256 i = 0; i < _locks[from].length; i++){
-            if(_unlock(from, i)){
+        for(uint256 i = 0; i < _locks[from].length;){
+            i++;
+            if(_unlock(from, i-1)){
                 i--;
             }
         }
@@ -94,9 +103,9 @@ abstract contract ERC20Lockable is ERC20, Ownable {
     view
     returns (uint256 amount, uint256 due)
     {
-        LockInfo memory lock = _locks[locked][index];
-        amount = lock.amount;
-        due = lock.due;
+        LockInfo memory lockinfo = _locks[locked][index];
+        amount = lockinfo.amount;
+        due = lockinfo.due;
     }
 
     function totalLocked(address locked) external view returns(uint256 amount, uint256 length){
